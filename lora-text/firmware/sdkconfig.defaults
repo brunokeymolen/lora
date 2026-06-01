@@ -1,0 +1,48 @@
+# ── Target ──────────────────────────────────────────────────────────────────
+CONFIG_IDF_TARGET="esp32s3"
+
+# ── SX1262 SPI pins (Heltec WiFi LoRa 32 V4) ────────────────────────────────
+CONFIG_MISO_GPIO=11
+CONFIG_SCLK_GPIO=9
+CONFIG_MOSI_GPIO=10
+CONFIG_NSS_GPIO=8
+CONFIG_RST_GPIO=12
+CONFIG_BUSY_GPIO=13
+# TXEN drives FEM CTX (PA mode select): HIGH=TX/PA, LOW=RX/LNA
+# V4.3 (KCT8103L FEM): CTX = GPIO5
+CONFIG_TXEN_GPIO=5
+CONFIG_RXEN_GPIO=-1
+CONFIG_FEM_VCC_GPIO=7
+CONFIG_FEM_CSD_GPIO=2
+
+# ── LoRa settings ────────────────────────────────────────────────────────────
+# 868 MHz EU868 ISM band
+CONFIG_866MHZ=y
+# TCXO on Heltec V4, 1.8 V via DIO3
+CONFIG_USE_TCXO=y
+CONFIG_ADVANCED=y
+# SF12 / 125 kHz / CR 4/8 — maximum sensitivity for 5+ km range
+# At SF12/BW125 a 200-byte packet takes ~6 s on air — acceptable for a messenger
+CONFIG_SF_RATE=12
+CONFIG_BANDWIDTH=4
+CONFIG_CODING_RATE=4
+
+# ── Flash / partition ────────────────────────────────────────────────────────
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP=y
+
+# ── Serial monitor ───────────────────────────────────────────────────────────
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# ── OLED ─────────────────────────────────────────────────────────────────────
+CONFIG_OLED_SDA_GPIO=17
+CONFIG_OLED_SCL_GPIO=18
+CONFIG_OLED_VEXT_GPIO=36
+CONFIG_OLED_RST_GPIO=21
+CONFIG_OLED_CONTRAST=255
+
+# ── BLE (NimBLE) ─────────────────────────────────────────────────────────────
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_TASK_STACK_SIZE=5120

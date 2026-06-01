@@ -1,0 +1,17 @@
+# ESP-IDF build artefacts
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/dependencies.lock
+
+# Flutter
+app/lora_text_app/build/
+app/lora_text_app/.dart_tool/
+app/lora_text_app/.flutter-plugins
+app/lora_text_app/.flutter-plugins-dependencies
+app/lora_text_app/pubspec.lock
+
+# IDE
+.vscode/
+*.pyc
+__pycache__/

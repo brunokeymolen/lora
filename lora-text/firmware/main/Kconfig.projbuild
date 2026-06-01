@@ -1,0 +1,71 @@
+menu "LoRa Text Messenger Configuration"
+
+    config TX_POWER_DBM
+        int "TX power (dBm)"
+        range 2 22
+        default 22
+        help
+            SX1262 output power. 22 dBm is the maximum.
+
+    config LORA_PSK
+        string "LoRa Pre-Shared Key (passphrase)"
+        default "change-me-lora-text-default-key!"
+        help
+            Passphrase used to derive the AES-256 encryption key (via SHA-256).
+            All devices that want to communicate must use the same PSK.
+            Set this before flashing — messages from devices with a different
+            PSK will be silently dropped (GCM auth tag mismatch).
+
+    config BUTTON_GPIO
+        int "USR button GPIO"
+        default 0
+        help
+            GPIO of the user/boot button (active LOW). Default is GPIO0.
+            On this firmware the button only wakes the display from sleep.
+
+    config OLED_SDA_GPIO
+        int "OLED SDA GPIO"
+        default 17
+
+    config OLED_SCL_GPIO
+        int "OLED SCL GPIO"
+        default 18
+
+    config OLED_VEXT_GPIO
+        int "OLED VEXT GPIO (-1 to skip)"
+        default 36
+        help
+            Set LOW to power the OLED. Use -1 if always powered.
+
+    config OLED_RST_GPIO
+        int "OLED RESET GPIO (-1 to skip)"
+        default 21
+
+    config OLED_CONTRAST
+        int "OLED contrast"
+        range 0 255
+        default 255
+
+    config DISPLAY_SLEEP_S
+        int "Display sleep timeout (seconds)"
+        range 10 3600
+        default 300
+        help
+            Seconds of inactivity before the OLED is powered off.
+            Press the USR button to wake it.
+
+    config FEM_VCC_GPIO
+        int "FEM VCC power-enable GPIO"
+        default 7
+        help
+            GPIO that enables power to the front-end module (FEM).
+            Heltec V4: GPIO7 powers the KCT8103L LDO.
+
+    config FEM_CSD_GPIO
+        int "FEM CSD chip-enable GPIO"
+        default 2
+        help
+            GPIO connected to the FEM CSD pin (active HIGH).
+            Must be HIGH for the FEM PA and LNA to operate.
+
+endmenu
