@@ -10,8 +10,8 @@ CONFIG_RST_GPIO=12
 CONFIG_BUSY_GPIO=13
 # TXEN drives FEM CPS (PA mode select): HIGH=TX/PA, LOW=RX/LNA
 # V4.2 (GC1109 FEM): CPS = GPIO46
-# V4.3 (KCT8103L FEM): CTX = GPIO5  ← change to 5 if you have V4.3
-CONFIG_TXEN_GPIO=46
+# V4.3 (KCT8103L FEM): CTX = GPIO5
+CONFIG_TXEN_GPIO=5
 # RXEN not used: DIO2 (SetDio2AsRfSwitchCtrl) handles the RF path switching inside the FEM
 CONFIG_RXEN_GPIO=-1
 CONFIG_FEM_VCC_GPIO=7
