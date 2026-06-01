@@ -1,0 +1,59 @@
+menu "Ping-Pong Configuration"
+
+    config TX_POWER_DBM
+        int "TX power (dBm)"
+        range 2 22
+        default 22
+        help
+            SX1262 output power. 22 dBm is the maximum; use this for range tests.
+
+    config PONG_TIMEOUT_MS
+        int "Pong wait timeout (ms)"
+        range 500 30000
+        default 7000
+        help
+            How long the sender waits for a PONG response before declaring timeout.
+            At SF12/BW125 each packet takes ~1200 ms on air; RTT is ~2500 ms minimum.
+
+    config PONG_DELAY_MAX_MS
+        int "Max random PONG reply delay (ms)"
+        range 0 500
+        default 20
+        help
+            The responder waits a random 0..N ms before sending PONG.
+            This prevents simultaneous replies when both devices hear the same packet.
+
+    config BUTTON_GPIO
+        int "USR button GPIO"
+        default 0
+        help
+            GPIO of the user/boot button (active LOW). Default is GPIO0.
+
+    config OLED_SDA_GPIO
+        int "OLED SDA GPIO"
+        default 17
+
+    config OLED_SCL_GPIO
+        int "OLED SCL GPIO"
+        default 18
+
+    config OLED_VEXT_GPIO
+        int "OLED VEXT GPIO (-1 to skip)"
+        default 36
+        help
+            Set LOW to power the OLED. Use -1 if always powered.
+
+    config OLED_RST_GPIO
+        int "OLED RESET GPIO (-1 to skip)"
+        default 21
+        help
+            Toggle this line during init if the OLED has a dedicated reset pin.
+
+    config OLED_CONTRAST
+        int "OLED contrast"
+        range 0 255
+        default 255
+        help
+            SSD1306/SSD1315 contrast value. Higher values make the display brighter.
+
+endmenu

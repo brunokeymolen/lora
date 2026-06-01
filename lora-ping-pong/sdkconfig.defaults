@@ -1,0 +1,41 @@
+# ── Target ──────────────────────────────────────────────────────────────────
+CONFIG_IDF_TARGET="esp32s3"
+
+# ── SX1262 SPI pins (Heltec WiFi LoRa 32 V4) ────────────────────────────────
+CONFIG_MISO_GPIO=11
+CONFIG_SCLK_GPIO=9
+CONFIG_MOSI_GPIO=10
+CONFIG_NSS_GPIO=8
+CONFIG_RST_GPIO=12
+CONFIG_BUSY_GPIO=13
+# DIO1 is used as the interrupt line
+# TXEN drives the on-board PA (GPIO34); RXEN not used (DIO2 handles RX path)
+CONFIG_TXEN_GPIO=34
+CONFIG_RXEN_GPIO=-1
+
+# ── LoRa settings ────────────────────────────────────────────────────────────
+# 868 MHz for Europe (EU868 ISM band)
+CONFIG_866MHZ=y
+# TCXO is present on the Heltec V4; voltage = 1.8 V via DIO3
+CONFIG_USE_TCXO=y
+# Enable advanced radio parameter tuning via menuconfig
+CONFIG_ADVANCED=y
+# SF12 / 125 kHz / CR 4/8 – maximum sensitivity for long range (6+ km)
+# SF12 decode threshold: -20 dB SNR, sensitivity ~-137 dBm theoretical
+# Airtime at SF12/BW125: ~1200 ms per packet → RTT ~2.5 s
+# BW values (raw SX1262 register): 0=7.8k 1=15.6k 2=31.25k 3=62.5k 4=125k 5=250k 6=500k
+CONFIG_SF_RATE=12
+CONFIG_BANDWIDTH=4
+CONFIG_CODING_RATE=4
+
+# ── Flash / partition ────────────────────────────────────────────────────────
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP=y
+
+# ── Serial monitor ───────────────────────────────────────────────────────────
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_OLED_SDA_GPIO=17
+CONFIG_OLED_SCL_GPIO=18
+CONFIG_OLED_VEXT_GPIO=36
+CONFIG_OLED_RST_GPIO=21
+CONFIG_OLED_CONTRAST=255

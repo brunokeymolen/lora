@@ -1,0 +1,51 @@
+ It's all about the spreading factor (SF) — the single biggest knob in LoRa.
+
+  How LoRa range/speed tradeoff works
+
+  Each step up in SF doubles the time on air, but gives you ~3 dB more sensitivity (receiver can decode weaker signals):
+
+  ┌──────┬─────────────┬───────────────┬────────────┐
+  │ SF   │ Sensitivity │ Airtime (13B) │ Vs SF7     │
+  ├──────┼─────────────┼───────────────┼────────────┤
+  │ SF7  │ −123 dBm    │ ~50 ms        │ baseline   │
+  ├──────┼─────────────┼───────────────┼────────────┤
+  │ SF8  │ −126 dBm    │ ~100 ms       │ 2× slower  │
+  ├──────┼─────────────┼───────────────┼────────────┤
+  │ SF9  │ −129 dBm    │ ~185 ms       │ 4× slower  │
+  ├──────┼─────────────┼───────────────┼────────────┤
+  │ SF10 │ −132 dBm    │ ~330 ms       │ 7× slower  │
+  ├──────┼─────────────┼───────────────┼────────────┤
+  │ SF11 │ −135 dBm    │ ~620 ms       │ 12× slower │
+  ├──────┼─────────────┼───────────────┼────────────┤
+  │ SF12 │ −137 dBm    │ ~1200 ms      │ 24× slower │
+  └──────┴─────────────┴───────────────┴────────────┘
+
+  Meshtastic presets (EU868)
+
+  ┌────────────────────┬────────┬─────────────┬─────────┬────────────┐
+  │ Preset             │ SF     │ BW          │ CR      │ Range      │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Short/Fast         │ 7      │ 250 kHz     │ 4/5     │ ~1 km      │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Short/Slow         │ 8      │ 250 kHz     │ 4/5     │ ~2 km      │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Medium/Fast        │ 9      │ 250 kHz     │ 4/5     │ ~4 km      │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Medium/Slow        │ 10     │ 250 kHz     │ 4/5     │ ~8 km      │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Long/Fast          │ 10     │ 125 kHz     │ 4/8     │ ~15 km     │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Long/Slow          │ 11     │ 125 kHz     │ 4/8     │ ~20 km     │
+  ├────────────────────┼────────┼─────────────┼─────────┼────────────┤
+  │ Very Long/Slow     │ 12     │ 125 kHz     │ 4/8     │ ~30 km     │
+  └────────────────────┴────────┴─────────────┴─────────┴────────────┘
+
+  BW also matters — halving bandwidth (250→125 kHz) gives +3 dB sensitivity but halves throughput again.
+
+  For your range tester
+
+  Your current SF7/BW125 should reach 1–2 km outdoors easily once the fixes take effect. If you want to test antenna performance at longer distances, just change CONFIG_SF_RATE in menuconfig:
+
+   idf.py menuconfig → SX126X Configuration → SF_RATE
+
+  Try SF9 for indoors/urban, SF11 or SF12 for real long-range antenna tests. The RTT will go from ~100 ms to ~2–3 seconds but you'll reach kilometers.
