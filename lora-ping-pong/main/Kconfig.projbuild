@@ -65,4 +65,20 @@ menu "Ping-Pong Configuration"
             is powered off. Press the USR button once to wake it (without sending
             a PING). Set to 3600 to effectively disable auto-sleep.
 
+    config FEM_VCC_GPIO
+        int "FEM VCC power-enable GPIO"
+        default 7
+        help
+            GPIO that enables power to the front-end module (FEM).
+            Heltec V4: GPIO7 powers the GC1109 / KCT8103L LDO.
+            Must be driven HIGH before using the radio.
+
+    config FEM_CSD_GPIO
+        int "FEM CSD chip-enable GPIO"
+        default 2
+        help
+            GPIO connected to the FEM CSD (chip shutdown) pin.
+            Active HIGH: must be HIGH for the FEM PA and LNA to operate.
+            Heltec V4.2 (GC1109) and V4.3 (KCT8103L): both use GPIO2.
+
 endmenu

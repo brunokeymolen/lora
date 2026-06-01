@@ -218,6 +218,19 @@ int16_t LoRaBegin(uint32_t frequencyInHz, int8_t txPowerInDbm, float tcxoVoltage
 	SetOvercurrentProtection(60.0);  // current max 60mA for the whole device
 	SetPowerConfig(txPowerInDbm, SX126X_PA_RAMP_200U); //0 fuer Empfaenger
 	SetRfFrequency(frequencyInHz);
+
+	/* Boosted RX gain: write 0x96 to REG_RX_GAIN (0x08AC).
+	 * Default 0x94 = power-saving LNA gain.
+	 * 0x96 = maximum LNA gain, ~+3 dB sensitivity, costs ~2 mA extra.
+	 * Confirmed by Heltec official driver and Meshtastic firmware. */
+	uint8_t rxGain = 0x96;
+	WriteRegister(SX126X_REG_RX_GAIN, &rxGain, 1);
+
+	/* Undocumented register patch recommended by Heltec/Semtech.
+	 * Improves RX sensitivity. Referenced in Meshtastic SX126xInterface.cpp. */
+	uint8_t patch = 0x01;
+	WriteRegister(0x08B5, &patch, 1);
+
 	return ERR_NONE;
 }
 

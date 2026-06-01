@@ -415,6 +415,26 @@ void app_main(void)
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
     ESP_ERROR_CHECK(gpio_isr_handler_add(BTN_GPIO, btn_isr, NULL));
 
+    /* ── FEM (Front-End Module) power-up ─────────────────────────────────────
+     * Heltec V4 uses a GC1109 (V4.2) or KCT8103L (V4.3) FEM with an integrated
+     * PA and LNA.  Without these two GPIOs held HIGH the FEM is disabled and
+     * the board runs with the SX1262 internal LNA only — significantly worse RX.
+     *  GPIO7 (FEM_VCC) – LDO that powers the FEM chip
+     *  GPIO2 (FEM_CSD) – chip-enable, active HIGH
+     * TXEN (GPIO46 V4.2 / GPIO5 V4.3) is driven by the ra01s driver to switch
+     * the FEM between PA mode (TX) and LNA mode (RX). */
+    gpio_config_t fem = {
+        .pin_bit_mask = (1ULL << CONFIG_FEM_VCC_GPIO) | (1ULL << CONFIG_FEM_CSD_GPIO),
+        .mode         = GPIO_MODE_OUTPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&fem));
+    gpio_set_level(CONFIG_FEM_VCC_GPIO, 1);
+    gpio_set_level(CONFIG_FEM_CSD_GPIO, 1);
+    ESP_LOGI(TAG, "FEM enabled: VCC=GPIO%d CSD=GPIO%d TXEN=GPIO%d",
+             CONFIG_FEM_VCC_GPIO, CONFIG_FEM_CSD_GPIO, CONFIG_TXEN_GPIO);
+
     /* ── SX1262 ──────────────────────────────────────────────────────────── */
     LoRaInit();
     if (LoRaBegin(LORA_FREQ_HZ, (int8_t)LORA_TX_POWER,
