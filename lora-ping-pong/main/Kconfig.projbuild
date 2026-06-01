@@ -56,4 +56,13 @@ menu "Ping-Pong Configuration"
         help
             SSD1306/SSD1315 contrast value. Higher values make the display brighter.
 
+    config DISPLAY_SLEEP_S
+        int "Display sleep timeout (seconds)"
+        range 10 3600
+        default 300
+        help
+            Seconds of inactivity (no button press, no packet) before the OLED
+            is powered off. Press the USR button once to wake it (without sending
+            a PING). Set to 3600 to effectively disable auto-sleep.
+
 endmenu

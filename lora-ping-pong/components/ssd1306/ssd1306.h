@@ -35,3 +35,8 @@ void ssd1306_puts(ssd1306_t *dev, uint8_t col, uint8_t row, const char *str);
 
 /** printf into a single text row (rows 0-7). */
 void ssd1306_printf(ssd1306_t *dev, uint8_t row, const char *fmt, ...);
+
+/** Turn the display panel on (true) or off (false). Off blanks the panel but
+ *  preserves the framebuffer; calling ssd1306_flush() after ssd1306_power(true)
+ *  restores the previous content. */
+void ssd1306_power(ssd1306_t *dev, bool on);

@@ -136,7 +136,16 @@ static volatile struct {
 
 /* ── OLED ─────────────────────────────────────────────────────────────────── */
 static ssd1306_t s_oled;
-static bool      s_oled_ready = false;
+static bool      s_oled_ready  = false;
+static bool      s_display_on  = true;
+
+#define DISPLAY_SLEEP_US  ((int64_t)CONFIG_DISPLAY_SLEEP_S * 1000000LL)
+static volatile int64_t s_last_activity_us = 0;
+
+static void activity_touch(void)
+{
+    s_last_activity_us = esp_timer_get_time();
+}
 
 /* ── Button ISR ──────────────────────────────────────────────────────────── */
 static void IRAM_ATTR btn_isr(void *arg)
@@ -149,7 +158,7 @@ static void IRAM_ATTR btn_isr(void *arg)
 /* ── Display ─────────────────────────────────────────────────────────────── */
 static void display_update(void)
 {
-    if (!s_oled_ready) {
+    if (!s_oled_ready || !s_display_on) {
         return;
     }
 
@@ -173,6 +182,14 @@ static void display_update(void)
 static void display_task(void *arg)
 {
     for (;;) {
+        if (s_oled_ready) {
+            int64_t idle = esp_timer_get_time() - s_last_activity_us;
+            if (s_display_on && idle > DISPLAY_SLEEP_US) {
+                s_display_on = false;
+                ssd1306_power(&s_oled, false);
+                ESP_LOGI(TAG, "Display off (idle %llds)", (long long)(idle / 1000000));
+            }
+        }
         display_update();
         vTaskDelay(pdMS_TO_TICKS(400));
     }
@@ -212,6 +229,18 @@ static void lora_task(void *arg)
             /* Drain extra bounces */
             vTaskDelay(pdMS_TO_TICKS(50));
             while (xSemaphoreTake(s_btn_sem, 0) == pdTRUE);
+
+            /* Wake display first if it is sleeping; don't send PING on wake press */
+            if (!s_display_on) {
+                s_display_on = true;
+                ssd1306_power(&s_oled, true);
+                ssd1306_flush(&s_oled); // restore framebuffer content
+                activity_touch();
+                ESP_LOGI(TAG, "Display woken by button");
+                goto rx_poll;
+            }
+
+            activity_touch();
 
             /* Don't interrupt an in-progress wait */
             if (s_state == STATE_WAIT_PONG) {
@@ -264,6 +293,7 @@ static void lora_task(void *arg)
                             "peer_rx rssi=%d snr=%d",
                             pseq, g.last_rtt_ms, r, s,
                             p->rssi_rep, p->snr_rep);
+                        activity_touch();
                         got = true;
                     }
                 }
@@ -315,6 +345,7 @@ rx_poll:
                 snprintf((char *)g.status, sizeof(g.status),
                          "PING %02X%02X%02X #%u",
                          p->src_id[0], p->src_id[1], p->src_id[2], pseq);
+                activity_touch();
 
                 /* Minimum 20 ms delay before replying: gives the initiator time
                  * to complete its TX→RX transition (SetRx SPI + status ~10 ms)
@@ -413,6 +444,7 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(500));
 
     /* ── Tasks ────────────────────────────────────────────────────────────── */
+    activity_touch(); // start the display sleep timer from boot
     if (s_oled_ready) {
         xTaskCreate(display_task, "display", 3072, NULL, 3, NULL);
     }

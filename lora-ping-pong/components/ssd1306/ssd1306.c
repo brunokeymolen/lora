@@ -303,3 +303,8 @@ void ssd1306_printf(ssd1306_t *dev, uint8_t row, const char *fmt, ...)
     buf[SSD1306_COLS] = '\0';
     ssd1306_puts(dev, 0, row, buf);
 }
+
+void ssd1306_power(ssd1306_t *dev, bool on)
+{
+    write_cmd(dev, on ? 0xAF : 0xAE);
+}
