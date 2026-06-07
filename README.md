@@ -60,6 +60,14 @@
   </tr>
 </table>
 
+## TrailText Screenshots
+
+<p align="center">
+  <img src="lora-text/app/src/assets/images/trailtext-start.jpg" alt="TrailText start screen" width="260">
+  &nbsp;&nbsp;&nbsp;
+  <img src="lora-text/app/src/assets/images/trailtext-chat.jpg" alt="TrailText chat screen" width="260">
+</p>
+
 ## What This Repo Gives You
 
 | Area | TrailText | LoRa Ping-Pong |
