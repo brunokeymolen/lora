@@ -1,3 +1,20 @@
+/*
+ * TrailText
+ * Text when networks fail.
+ *
+ * Copyright (c) 2026 Bruno Keymolen
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License.
+ *
+ * You are free to share and adapt this work for non-commercial purposes,
+ * provided that appropriate credit is given and any derivative works are
+ * distributed under the same license.
+ *
+ * License: CC BY-NC-SA 4.0
+ * See: https://creativecommons.org/licenses/by-nc-sa/4.0/
+ */
+
 #pragma once
 
 #include <stdint.h>
@@ -32,6 +49,9 @@ void ssd1306_putchar(ssd1306_t *dev, uint8_t col, uint8_t row, char c);
 
 /** Draw a NUL-terminated string starting at col/row, wraps at screen edge. */
 void ssd1306_puts(ssd1306_t *dev, uint8_t col, uint8_t row, const char *str);
+
+/** Draw a doubled-size ASCII string at pixel coordinates. */
+void ssd1306_puts_2x(ssd1306_t *dev, uint8_t x, uint8_t y, const char *str);
 
 /** printf into a single text row (rows 0-7). */
 void ssd1306_printf(ssd1306_t *dev, uint8_t row, const char *fmt, ...);

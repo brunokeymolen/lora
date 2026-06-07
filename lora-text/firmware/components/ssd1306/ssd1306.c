@@ -1,3 +1,20 @@
+/*
+ * TrailText
+ * Text when networks fail.
+ *
+ * Copyright (c) 2026 Bruno Keymolen
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License.
+ *
+ * You are free to share and adapt this work for non-commercial purposes,
+ * provided that appropriate credit is given and any derivative works are
+ * distributed under the same license.
+ *
+ * License: CC BY-NC-SA 4.0
+ * See: https://creativecommons.org/licenses/by-nc-sa/4.0/
+ */
+
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -268,6 +285,20 @@ void ssd1306_flush(ssd1306_t *dev)
 
 /* ── Text rendering ────────────────────────────────────────────────────────── */
 
+static void ssd1306_set_pixel(ssd1306_t *dev, uint8_t x, uint8_t y, bool on)
+{
+    if (x >= SSD1306_WIDTH || y >= SSD1306_HEIGHT) return;
+
+    uint8_t page = y / 8;
+    uint8_t mask = (uint8_t)(1U << (y % 8));
+
+    if (on) {
+        dev->fb[page][x] |= mask;
+    } else {
+        dev->fb[page][x] &= (uint8_t)~mask;
+    }
+}
+
 void ssd1306_putchar(ssd1306_t *dev, uint8_t col, uint8_t row, char c)
 {
     if (row >= SSD1306_PAGES || col >= SSD1306_COLS) return;
@@ -287,6 +318,36 @@ void ssd1306_puts(ssd1306_t *dev, uint8_t col, uint8_t row, const char *str)
         if (col >= SSD1306_COLS) { col = 0; row++; }
         if (row >= SSD1306_PAGES) break;
         ssd1306_putchar(dev, col++, row, *str++);
+    }
+}
+
+void ssd1306_puts_2x(ssd1306_t *dev, uint8_t x, uint8_t y, const char *str)
+{
+    uint8_t cursor_x = x;
+
+    while (*str) {
+        char c = *str++;
+        if (c < 0x20 || c > 0x7E) c = 0x20;
+
+        if (cursor_x + 10 > SSD1306_WIDTH || y + 14 > SSD1306_HEIGHT) {
+            break;
+        }
+
+        const uint8_t *glyph = FONT5X7[c - 0x20];
+        for (uint8_t gx = 0; gx < 5; gx++) {
+            for (uint8_t gy = 0; gy < 7; gy++) {
+                bool on = (glyph[gx] >> gy) & 0x01;
+                uint8_t px = (uint8_t)(cursor_x + gx * 2);
+                uint8_t py = (uint8_t)(y + gy * 2);
+
+                ssd1306_set_pixel(dev, px, py, on);
+                ssd1306_set_pixel(dev, (uint8_t)(px + 1), py, on);
+                ssd1306_set_pixel(dev, px, (uint8_t)(py + 1), on);
+                ssd1306_set_pixel(dev, (uint8_t)(px + 1), (uint8_t)(py + 1), on);
+            }
+        }
+
+        cursor_x = (uint8_t)(cursor_x + 12);
     }
 }
 

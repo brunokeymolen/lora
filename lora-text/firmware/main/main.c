@@ -1,3 +1,20 @@
+/*
+ * TrailText
+ * Text when networks fail.
+ *
+ * Copyright (c) 2026 Bruno Keymolen
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License.
+ *
+ * You are free to share and adapt this work for non-commercial purposes,
+ * provided that appropriate credit is given and any derivative works are
+ * distributed under the same license.
+ *
+ * License: CC BY-NC-SA 4.0
+ * See: https://creativecommons.org/licenses/by-nc-sa/4.0/
+ */
+
 /**
  * LoRa Text Messenger — Heltec WiFi LoRa 32 V4.3 (ESP32-S3 + SX1262)
  *
@@ -71,6 +88,12 @@ _Static_assert(sizeof(CONFIG_LORA_PSK) > 1,
 
 static const char *TAG = "LORA_TEXT";
 
+#define APP_NAME            "TrailText"
+#define APP_SUBTITLE_LINE1  "text when"
+#define APP_SUBTITLE_LINE2  "networks fail"
+#define APP_DEVICE_PREFIX   "TrailText"
+#define SPLASH_SCREEN_MS    3600
+
 /* ── Board ──────────────────────────────────────────────────────────────── */
 #define BTN_GPIO        CONFIG_BUTTON_GPIO
 
@@ -143,6 +166,42 @@ static volatile int64_t s_last_activity_us = 0;
 static void activity_touch(void)
 {
     s_last_activity_us = esp_timer_get_time();
+}
+
+static void display_centered(uint8_t row, const char *text)
+{
+    size_t text_len = strnlen(text, SSD1306_COLS);
+    uint8_t col = 0;
+
+    if (text_len < SSD1306_COLS) {
+        col = (uint8_t)((SSD1306_COLS - text_len) / 2);
+    }
+
+    ssd1306_puts(&s_oled, col, row, text);
+}
+
+static void display_centered_2x(uint8_t y, const char *text)
+{
+    size_t text_len = strlen(text);
+    size_t text_width = text_len * 12;
+    uint8_t x = 0;
+
+    if (text_width < SSD1306_WIDTH) {
+        x = (uint8_t)((SSD1306_WIDTH - text_width) / 2);
+    }
+
+    ssd1306_puts_2x(&s_oled, x, y, text);
+}
+
+static void display_show_splash(void)
+{
+    if (!s_oled_ready) return;
+
+    ssd1306_clear(&s_oled);
+    display_centered_2x(6, APP_NAME);
+    display_centered(5, APP_SUBTITLE_LINE1);
+    display_centered(6, APP_SUBTITLE_LINE2);
+    ssd1306_flush(&s_oled);
 }
 
 /* ── Display state (written from lora_task, read from display_task) ─────── */
@@ -680,10 +739,7 @@ void app_main(void)
                                        CONFIG_OLED_RST_GPIO);
     if (oled_ret == ESP_OK) {
         s_oled_ready = true;
-        ssd1306_printf(&s_oled, 0, "LoRa Text Messenger");
-        ssd1306_printf(&s_oled, 1, "868MHz SF%d %ddBm", LORA_SF, LORA_TX_POWER);
-        ssd1306_printf(&s_oled, 2, "Initialising...");
-        ssd1306_flush(&s_oled);
+        display_show_splash();
     } else {
         ESP_LOGW(TAG, "OLED init skipped: %s", esp_err_to_name(oled_ret));
     }
@@ -734,11 +790,6 @@ void app_main(void)
     ESP_LOGI(TAG, "SX1262 ready: %luHz SF%d BW-idx%d CR4/%d %ddBm",
              LORA_FREQ_HZ, LORA_SF, LORA_BW, LORA_CR + 4, LORA_TX_POWER);
 
-    if (s_oled_ready) {
-        ssd1306_printf(&s_oled, 2, "SX1262 OK");
-        ssd1306_flush(&s_oled);
-    }
-
     /* ── NimBLE ──────────────────────────────────────────────────────── */
     ESP_ERROR_CHECK(nimble_port_init());
 
@@ -752,7 +803,7 @@ void app_main(void)
 
     /* Set device name before advertising starts */
     char dev_name[32];
-    snprintf(dev_name, sizeof(dev_name), "LoRaText-%02X%02X%02X",
+    snprintf(dev_name, sizeof(dev_name), APP_DEVICE_PREFIX "-%02X%02X%02X",
              s_my_mac[3], s_my_mac[4], s_my_mac[5]);
     ble_svc_gap_device_name_set(dev_name);
 
@@ -765,10 +816,7 @@ void app_main(void)
     ESP_LOGI(TAG, "NimBLE started, device name: %s", dev_name);
 
     if (s_oled_ready) {
-        ssd1306_printf(&s_oled, 3, "BLE: %s", dev_name + 9); /* skip "LoRaText-" */
-        ssd1306_printf(&s_oled, 4, "Connect phone now");
-        ssd1306_flush(&s_oled);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(SPLASH_SCREEN_MS));
     }
 
     /* ── Start tasks ─────────────────────────────────────────────────── */

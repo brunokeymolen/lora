@@ -1,9 +1,27 @@
+/*
+ * TrailText
+ * Text when networks fail.
+ *
+ * Copyright (c) 2026 Bruno Keymolen
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License.
+ *
+ * You are free to share and adapt this work for non-commercial purposes,
+ * provided that appropriate credit is given and any derivative works are
+ * distributed under the same license.
+ *
+ * License: CC BY-NC-SA 4.0
+ * See: https://creativecommons.org/licenses/by-nc-sa/4.0/
+ */
+
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/widgets.dart';
 
 import '../models/message.dart';
@@ -13,6 +31,12 @@ const _nusSvcUuid = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const _nusTxUuid = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // phone → ESP32
 const _nusRxUuid =
     '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // ESP32 → phone (notify)
+const _protoMsgPrefix = '@M|';
+const _protoLocPrefix = '@L|';
+const _protoAckPrefix = '@A|';
+const _firmwarePayloadLimit = 180;
+const _storedMessagesKey = 'stored_messages_v1';
+const _maxStoredMessages = 200;
 
 enum BleStatus { idle, scanning, connecting, connected, disconnected }
 
@@ -37,6 +61,8 @@ class BleService extends ChangeNotifier {
   String _ownMac = '';
   StreamSubscription? _rxSub;
   StreamSubscription? _stateSub;
+  final Map<String, int> _ownMessageIndexById = {};
+  int _messageSeq = 0;
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   late final AppLifecycleListener _lifecycleListener;
@@ -47,6 +73,7 @@ class BleService extends ChangeNotifier {
       onStateChange: (state) => _appLifecycleState = state,
     );
     unawaited(_initializeNotifications());
+    unawaited(_restoreMessages());
   }
 
   // ── Public getters ─────────────────────────────────────────────────────────
@@ -62,7 +89,6 @@ class BleService extends ChangeNotifier {
   // ── Scanning ───────────────────────────────────────────────────────────────
 
   Future<void> startScan() async {
-    // Request all BLE + location permissions required on Android 12+
     await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
@@ -89,8 +115,6 @@ class BleService extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Do NOT filter by service UUID — Android 128-bit UUID filtering is unreliable.
-    // Filter by device name ('LoRaText-') in the results listener above instead.
     await FlutterBluePlus.startScan(
       timeout: const Duration(seconds: 10),
     );
@@ -178,30 +202,18 @@ class BleService extends ChangeNotifier {
   /// Send a text message via BLE → ESP32 → LoRa (encrypted on ESP32).
   /// Returns true on success.
   Future<bool> sendMessage(String text) async {
-    if (!isConnected || _txChar == null || text.isEmpty) return false;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    return _sendPacket(type: 'msg', text: trimmed);
+  }
 
-    // Truncate to 180 bytes (firmware limit)
-    final bytes = utf8.encode(text);
-    final payload = bytes.length > 180 ? bytes.sublist(0, 180) : bytes;
-
-    try {
-      await _txChar!.write(payload, withoutResponse: true);
-
-      // Add as our own outgoing message
-      _messages.add(LoRaMessage(
-        from: _ownMac,
-        text: utf8.decode(payload),
-        rssi: 0,
-        snr: 0,
-        timestamp: DateTime.now(),
-        isOwn: true,
-      ));
-      notifyListeners();
-      return true;
-    } catch (e) {
-      debugPrint('BLE write error: $e');
-      return false;
-    }
+  Future<bool> sendLocation(double latitude, double longitude) {
+    return _sendPacket(
+      type: 'loc',
+      text: '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}',
+      latitude: latitude,
+      longitude: longitude,
+    );
   }
 
   // ── Incoming notification ──────────────────────────────────────────────────
@@ -209,17 +221,39 @@ class BleService extends ChangeNotifier {
   void _onNotification(List<int> value) {
     try {
       final json = jsonDecode(utf8.decode(value)) as Map<String, dynamic>;
+      final from = json['from'] as String? ?? '??????';
+      final wireText = json['text'] as String? ?? '';
+      final rssi = (json['rssi'] as num?)?.toInt() ?? 0;
+      final snr = (json['snr'] as num?)?.toInt() ?? 0;
+
+      if (_handleAckPacket(wireText)) {
+        return;
+      }
+
+      final parsed = _parseIncomingPacket(wireText);
+      final messageId = parsed?['id'] as String?;
+      final kind = parsed?['kind'] as String?;
+      final text = parsed?['text'] as String? ?? wireText;
+      final lat = parsed?['latitude'] as double?;
+      final lon = parsed?['longitude'] as double?;
+
       final msg = LoRaMessage(
-        from: json['from'] as String? ?? '??????',
-        text: json['text'] as String? ?? '',
-        rssi: (json['rssi'] as num?)?.toInt() ?? 0,
-        snr: (json['snr'] as num?)?.toInt() ?? 0,
+        from: from,
+        text: text,
+        rssi: rssi,
+        snr: snr,
         timestamp: DateTime.now(),
         isOwn: false,
+        messageId: messageId,
+        latitude: lat,
+        longitude: lon,
       );
-      _messages.add(msg);
-      notifyListeners();
+      _appendMessage(msg);
       unawaited(_showIncomingMessageNotification(msg));
+
+      if (messageId != null && (kind == 'msg' || kind == 'loc')) {
+        unawaited(_sendAck(messageId));
+      }
     } catch (e) {
       debugPrint('BLE RX parse error: $e  raw: ${utf8.decode(value)}');
     }
@@ -229,7 +263,9 @@ class BleService extends ChangeNotifier {
 
   void clearMessages() {
     _messages.clear();
+    _ownMessageIndexById.clear();
     notifyListeners();
+    unawaited(_persistMessages());
   }
 
   @override
@@ -281,5 +317,201 @@ class BleService extends ChangeNotifier {
       msg.text,
       NotificationDetails(android: androidDetails),
     );
+  }
+
+  Future<bool> _sendPacket({
+    required String type,
+    required String text,
+    double? latitude,
+    double? longitude,
+  }) async {
+    if (!isConnected || _txChar == null) return false;
+
+    final id = _nextMessageId();
+    final wire = _encodeWirePayload(
+      type: type,
+      id: id,
+      text: text,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    final payload = utf8.encode(wire);
+    if (payload.length > _firmwarePayloadLimit) {
+      debugPrint('Payload too long: ${payload.length} bytes');
+      return false;
+    }
+
+    try {
+      await _txChar!.write(payload, withoutResponse: true);
+      final ownMsg = LoRaMessage(
+        from: _ownMac,
+        text: text,
+        rssi: 0,
+        snr: 0,
+        timestamp: DateTime.now(),
+        isOwn: true,
+        messageId: id,
+        isAcked: false,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      _appendMessage(ownMsg);
+      return true;
+    } catch (e) {
+      debugPrint('BLE write error: $e');
+      return false;
+    }
+  }
+
+  Future<void> _sendAck(String messageId) async {
+    if (!isConnected || _txChar == null) return;
+    final payload = utf8.encode('$_protoAckPrefix$messageId');
+    if (payload.length > _firmwarePayloadLimit) return;
+    try {
+      await _txChar!.write(payload, withoutResponse: true);
+    } catch (e) {
+      debugPrint('BLE ack write error: $e');
+    }
+  }
+
+  bool _handleAckPacket(String wireText) {
+    if (!wireText.startsWith(_protoAckPrefix)) {
+      return false;
+    }
+    final ackedId = wireText.substring(_protoAckPrefix.length).trim();
+    if (ackedId.isEmpty) return true;
+    _markOwnMessageAcked(ackedId);
+    return true;
+  }
+
+  Map<String, Object?>? _parseIncomingPacket(String wireText) {
+    if (wireText.startsWith(_protoMsgPrefix)) {
+      final parts = wireText.split('|');
+      if (parts.length < 3) return null;
+      return {
+        'kind': 'msg',
+        'id': parts[1],
+        'text': parts.sublist(2).join('|'),
+      };
+    }
+
+    if (wireText.startsWith(_protoLocPrefix)) {
+      final parts = wireText.split('|');
+      if (parts.length < 4) return null;
+      final lat = double.tryParse(parts[2]);
+      final lon = double.tryParse(parts[3]);
+      if (lat == null || lon == null) return null;
+      return {
+        'kind': 'loc',
+        'id': parts[1],
+        'text': '${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
+        'latitude': lat,
+        'longitude': lon,
+      };
+    }
+
+    return null;
+  }
+
+  String _encodeWirePayload({
+    required String type,
+    required String id,
+    required String text,
+    double? latitude,
+    double? longitude,
+  }) {
+    if (type == 'loc' && latitude != null && longitude != null) {
+      return '$_protoLocPrefix$id|${latitude.toStringAsFixed(6)}|${longitude.toStringAsFixed(6)}';
+    }
+    return '$_protoMsgPrefix$id|$text';
+  }
+
+  String _nextMessageId() {
+    _messageSeq = (_messageSeq + 1) % 1000;
+    return '${DateTime.now().millisecondsSinceEpoch}_$_messageSeq';
+  }
+
+  void _markOwnMessageAcked(String messageId) {
+    int? idx = _ownMessageIndexById[messageId];
+    if (idx == null || idx < 0 || idx >= _messages.length) {
+      idx = _messages.lastIndexWhere(
+        (m) => m.isOwn && m.messageId == messageId,
+      );
+      if (idx < 0) return;
+      _ownMessageIndexById[messageId] = idx;
+    }
+
+    final current = _messages[idx];
+    if (current.isAcked) return;
+    _messages[idx] = current.copyWith(
+      isAcked: true,
+      ackedAt: DateTime.now(),
+    );
+    notifyListeners();
+    unawaited(_persistMessages());
+  }
+
+  void _appendMessage(LoRaMessage message) {
+    _messages.add(message);
+    _trimMessages();
+    _rebuildOwnMessageIndex();
+    notifyListeners();
+    unawaited(_persistMessages());
+  }
+
+  void _trimMessages() {
+    final overflow = _messages.length - _maxStoredMessages;
+    if (overflow > 0) {
+      _messages.removeRange(0, overflow);
+    }
+  }
+
+  void _rebuildOwnMessageIndex() {
+    _ownMessageIndexById
+      ..clear()
+      ..addEntries(
+        _messages.indexed.where((entry) {
+          final message = entry.$2;
+          return message.isOwn && message.messageId != null;
+        }).map(
+          (entry) => MapEntry(entry.$2.messageId!, entry.$1),
+        ),
+      );
+  }
+
+  Future<void> _restoreMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_storedMessagesKey);
+      if (stored == null || stored.isEmpty) return;
+
+      final decoded = jsonDecode(stored);
+      if (decoded is! List) return;
+
+      _messages
+        ..clear()
+        ..addAll(
+          decoded.whereType<Map>().map(
+                (item) => LoRaMessage.fromJson(Map<String, dynamic>.from(item)),
+              ),
+        );
+      _trimMessages();
+      _rebuildOwnMessageIndex();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Restore messages failed: $e');
+    }
+  }
+
+  Future<void> _persistMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(
+        _messages.map((message) => message.toJson()).toList(growable: false),
+      );
+      await prefs.setString(_storedMessagesKey, encoded);
+    } catch (e) {
+      debugPrint('Persist messages failed: $e');
+    }
   }
 }

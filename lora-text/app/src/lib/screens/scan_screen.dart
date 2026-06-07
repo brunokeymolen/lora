@@ -1,3 +1,20 @@
+/*
+ * TrailText
+ * Text when networks fail.
+ *
+ * Copyright (c) 2026 Bruno Keymolen
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License.
+ *
+ * You are free to share and adapt this work for non-commercial purposes,
+ * provided that appropriate credit is given and any derivative works are
+ * distributed under the same license.
+ *
+ * License: CC BY-NC-SA 4.0
+ * See: https://creativecommons.org/licenses/by-nc-sa/4.0/
+ */
+
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:provider/provider.dart';
@@ -19,14 +36,21 @@ class _ScanScreenState extends State<ScanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LoRa Text'),
+        leadingWidth: 40,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child:
+              Image.asset('assets/images/logo_icon.png', width: 28, height: 28),
+        ),
+        title: const Text('TrailText'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (ble.isScanning)
             const Padding(
               padding: EdgeInsets.all(14),
               child: SizedBox(
-                width: 20, height: 20,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
@@ -34,6 +58,13 @@ class _ScanScreenState extends State<ScanScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset('assets/images/logo_banner.png'),
+            ),
+          ),
           // Status banner
           _StatusBanner(status: ble.status),
 
@@ -44,8 +75,8 @@ class _ScanScreenState extends State<ScanScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.bluetooth_searching, size: 64,
-                            color: Colors.grey),
+                        const Icon(Icons.bluetooth_searching,
+                            size: 64, color: Colors.grey),
                         const SizedBox(height: 16),
                         Text(
                           ble.isScanning
@@ -65,9 +96,8 @@ class _ScanScreenState extends State<ScanScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: ble.isScanning
-            ? () => ble.stopScan()
-            : () => ble.startScan(),
+        onPressed:
+            ble.isScanning ? () => ble.stopScan() : () => ble.startScan(),
         icon: Icon(ble.isScanning ? Icons.stop : Icons.search),
         label: Text(ble.isScanning ? 'Stop' : 'Scan'),
       ),
@@ -86,19 +116,19 @@ class _StatusBanner extends StatelessWidget {
     switch (status) {
       case BleStatus.connected:
         color = Colors.green.shade100;
-        text  = '● Connected';
+        text = '● Connected';
         break;
       case BleStatus.connecting:
         color = Colors.orange.shade100;
-        text  = '◌ Connecting...';
+        text = '◌ Connecting...';
         break;
       case BleStatus.scanning:
         color = Colors.blue.shade100;
-        text  = '◎ Scanning...';
+        text = '◎ Scanning...';
         break;
       default:
         color = Colors.grey.shade100;
-        text  = '○ Disconnected';
+        text = '○ Disconnected';
     }
     return Container(
       width: double.infinity,
@@ -115,9 +145,9 @@ class _DeviceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ble    = context.read<BleService>();
-    final name   = result.device.platformName;
-    final rssi   = result.rssi;
+    final ble = context.read<BleService>();
+    final name = result.device.platformName;
+    final rssi = result.rssi;
 
     return ListTile(
       leading: const Icon(Icons.bluetooth, color: Colors.indigo),
