@@ -66,6 +66,9 @@
 #include "ra01s.h"
 #include "ssd1306.h"
 
+_Static_assert(sizeof(CONFIG_LORA_PSK) > 1,
+               "CONFIG_LORA_PSK must be set in local sdkconfig or menuconfig");
+
 static const char *TAG = "LORA_TEXT";
 
 /* ── Board ──────────────────────────────────────────────────────────────── */
@@ -149,7 +152,7 @@ static volatile struct {
     char  text[MAX_TEXT_LEN + 1];    /* last received plaintext */
     int8_t rssi;
     int8_t snr;
-    char  status[22];
+    char  status[32];
 } g;
 
 /* ── Button ─────────────────────────────────────────────────────────────── */
@@ -379,19 +382,41 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
 
 static void ble_advertise(void)
 {
+    int rc;
+
+    /* Primary adv packet: flags + NUS service UUID (needed for iOS/Android scan filter) */
     struct ble_hs_adv_fields fields = {0};
-    fields.flags            = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    const char *name        = ble_svc_gap_device_name();
-    fields.name             = (uint8_t *)name;
-    fields.name_len         = (uint8_t)strlen(name);
-    fields.name_is_complete = 1;
-    ble_gap_adv_set_fields(&fields);
+    fields.flags                   = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.uuids128                = &nus_svc_uuid;
+    fields.num_uuids128            = 1;
+    fields.uuids128_is_complete    = 1;
+    rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: %d", rc);
+        return;
+    }
+
+    /* Scan response: full device name (LoRaText-XXXXXX) */
+    struct ble_hs_adv_fields rsp = {0};
+    const char *name             = ble_svc_gap_device_name();
+    rsp.name                     = (uint8_t *)name;
+    rsp.name_len                 = (uint8_t)strlen(name);
+    rsp.name_is_complete         = 1;
+    rc = ble_gap_adv_rsp_set_fields(&rsp);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_adv_rsp_set_fields failed: %d", rc);
+        return;
+    }
 
     struct ble_gap_adv_params adv = {0};
     adv.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    ble_gap_adv_start(s_ble_addr_type, NULL, BLE_HS_FOREVER,
-                      &adv, ble_gap_event_cb, NULL);
+    rc = ble_gap_adv_start(s_ble_addr_type, NULL, BLE_HS_FOREVER,
+                           &adv, ble_gap_event_cb, NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_adv_start failed: %d", rc);
+        return;
+    }
     ESP_LOGI(TAG, "Advertising as '%s'", name);
 }
 

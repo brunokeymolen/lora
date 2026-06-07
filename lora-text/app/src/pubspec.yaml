@@ -14,6 +14,12 @@ dependencies:
   # BLE
   flutter_blue_plus: ^1.31.0
 
+  # Runtime permissions
+  permission_handler: ^11.3.1
+
+  # Local notifications
+  flutter_local_notifications: ^17.2.4
+
   # State management
   provider: ^6.1.2
 

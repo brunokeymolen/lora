@@ -1,0 +1,16 @@
+build/
+sdkconfig
+sdkconfig.old
+sdkconfig.*.old
+
+# Local editor and IDE settings
+.vscode/
+.idea/
+
+# Editor swap files
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store

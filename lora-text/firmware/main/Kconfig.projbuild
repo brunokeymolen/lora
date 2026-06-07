@@ -9,12 +9,14 @@ menu "LoRa Text Messenger Configuration"
 
     config LORA_PSK
         string "LoRa Pre-Shared Key (passphrase)"
-        default "change-me-lora-text-default-key!"
+        default ""
         help
             Passphrase used to derive the AES-256 encryption key (via SHA-256).
             All devices that want to communicate must use the same PSK.
-            Set this before flashing — messages from devices with a different
-            PSK will be silently dropped (GCM auth tag mismatch).
+            Set this in the local sdkconfig or via menuconfig before flashing.
+            Do not store real PSKs in sdkconfig.defaults or commit them to git.
+            Messages from devices with a different PSK will be silently dropped
+            (GCM auth tag mismatch).
 
     config BUTTON_GPIO
         int "USR button GPIO"
