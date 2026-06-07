@@ -146,7 +146,11 @@ class _DeviceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ble = context.read<BleService>();
-    final name = result.device.platformName;
+    final platformName = result.device.platformName.trim();
+    final advName = result.advertisementData.advName.trim();
+    final name = platformName.isNotEmpty
+        ? platformName
+        : (advName.isNotEmpty ? advName : 'Unknown device');
     final rssi = result.rssi;
 
     return ListTile(

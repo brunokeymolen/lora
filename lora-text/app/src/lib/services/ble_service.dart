@@ -37,6 +37,7 @@ const _protoAckPrefix = '@A|';
 const _firmwarePayloadLimit = 180;
 const _storedMessagesKey = 'stored_messages_v1';
 const _maxStoredMessages = 200;
+const _deviceNamePrefixes = ['loratext-', 'trailtext-'];
 
 enum BleStatus { idle, scanning, connecting, connected, disconnected }
 
@@ -106,12 +107,11 @@ class BleService extends ChangeNotifier {
     _setStatus(BleStatus.scanning);
 
     FlutterBluePlus.scanResults.listen((results) {
+      final filtered = results.where(_isTargetDevice).toList();
+      final visible = filtered.isNotEmpty ? filtered : results;
       _scanResults
         ..clear()
-        ..addAll(results
-            .where((r) => r.device.platformName.startsWith('LoRaText-'))
-            .toList()
-          ..sort((a, b) => b.rssi.compareTo(a.rssi)));
+        ..addAll(visible..sort((a, b) => b.rssi.compareTo(a.rssi)));
       notifyListeners();
     });
 
@@ -126,6 +126,21 @@ class BleService extends ChangeNotifier {
   Future<void> stopScan() async {
     await FlutterBluePlus.stopScan();
     if (_status == BleStatus.scanning) _setStatus(BleStatus.idle);
+  }
+
+  bool _isTargetDevice(ScanResult result) {
+    final platformName = result.device.platformName.toLowerCase();
+    final advertisedName = result.advertisementData.advName.toLowerCase();
+    final nameMatch = _deviceNamePrefixes.any((prefix) {
+      return platformName.startsWith(prefix) ||
+          advertisedName.startsWith(prefix);
+    });
+
+    final hasNusService = result.advertisementData.serviceUuids.any((uuid) {
+      return uuid.toString().toLowerCase() == _nusSvcUuid;
+    });
+
+    return nameMatch || hasNusService;
   }
 
   // ── Connection ─────────────────────────────────────────────────────────────
