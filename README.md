@@ -60,6 +60,12 @@
   </tr>
 </table>
 
+## LoRa Ping-Pong Hardware
+
+<p align="center">
+  <img src="lora-text/app/src/assets/images/pingpong.jpg" alt="Two Heltec LoRa devices running LoRa Ping-Pong" width="760">
+</p>
+
 ## TrailText Screenshots
 
 <p align="center">
